@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Hunting Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: #fff;
+            text-align: center;
+        }
+
+        .menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #222;
+            border: 2px solid #fff;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            background-color: #555;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #777;
+        }
+
+        .difficulty {
+            margin-top: 20px;
+        }
+
+        .difficulty button {
+            margin: 5px;
+        }
+
+        .pause-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+
+        .pause-menu button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="main-menu" class="menu">
+        <h1>Ghost Hunting Game</h1>
+        <button id="start-game">Start Game</button>
+        <button id="view-records">View Records</button>
+        <div class="difficulty">
+            <p>Select Difficulty:</p>
+            <button data-difficulty="unlimited">Unlimited Lives</button>
+            <button data-difficulty="easy">Easy</button>
+            <button data-difficulty="normal">Normal</button>
+            <button data-difficulty="hard">Hard</button>
+            <button data-difficulty="expert">Expert</button>
+        </div>
+    </div>
+
+    <canvas id="game-canvas" width="800" height="600" style="display: none;"></canvas>
+
+    <div id="pause-menu" class="pause-menu">
+        <h2>Game Paused</h2>
+        <button id="resume-game">Resume</button>
+        <button id="exit-to-main">Exit to Main Menu</button>
+    </div>
+
+    <div id="end-menu" class="menu" style="display: none;">
+        <h1 id="end-message">Game Over</h1>
+        <p id="time-taken" style="display: none;"></p>
+        <button id="retry-game">Retry</button>
+        <button id="exit-game">Exit</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const mainMenu = document.getElementById('main-menu');
+        const endMenu = document.getElementById('end-menu');
+        const pauseMenu = document.getElementById('pause-menu');
+        const startGameBtn = document.getElementById('start-game');
+        const viewRecordsBtn = document.getElementById('view-records');
+        const retryGameBtn = document.getElementById('retry-game');
+        const exitGameBtn = document.getElementById('exit-game');
+        const resumeGameBtn = document.getElementById('resume-game');
+        const exitToMainBtn = document.getElementById('exit-to-main');
+        const endMessage = document.getElementById('end-message');
+        const timeTaken = document.getElementById('time-taken');
+        const difficultyButtons = document.querySelectorAll('.difficulty button');
+
+        let gameActive = false;
+        let gamePaused = false;
+        let startTime;
+        let selectedDifficulty = 'normal';
+        const ghosts = [];
+
+        const gameState = {
+            score: 0,
+            health: 3,
+            stage: 1,
+        };
+
+        const difficulties = {
+            unlimited: { health: Infinity, speedMultiplier: 0.5 },
+            easy: { health: 5, speedMultiplier: 0.75 },
+            normal: { health: 3, speedMultiplier: 1 },
+            hard: { health: 2, speedMultiplier: 1.5 },
+            expert: { health: 1, speedMultiplier: 2 },
+        };
+
+        class Ghost {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 20;
+                this.speed = (2 + gameState.stage * 0.5) * difficulties[selectedDifficulty].speedMultiplier;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            move() {
+                this.x += this.speed;
+                if (this.x - this.radius > canvas.width) {
+                    if (gameState.health !== Infinity) gameState.health--;
+                    this.reset();
+                }
+            }
+
+            reset() {
+                this.x = -this.radius;
+                this.y = Math.random() * canvas.height;
+            }
+
+            isHit(mouseX, mouseY) {
+                const dx = mouseX - this.x;
+                const dy = mouseY - this.y;
+                return Math.sqrt(dx * dx + dy * dy) <= this.radius;
+            }
+        }
+
+        function createGhosts(num) {
+            for (let i = 0; i < num; i++) {
+                const ghost = new Ghost(-20, Math.random() * canvas.height);
+                ghosts.push(ghost);
+            }
+        }
+
+        function startGame() {
+            gameActive = true;
+            gamePaused = false;
+            const difficulty = difficulties[selectedDifficulty];
+            gameState.score = 0;
+            gameState.health = difficulty.health;
+            gameState.stage = 1;
+            startTime = Date.now();
+
+            ghosts.length = 0;
+            createGhosts(5);
+
+            mainMenu.style.display = 'none';
+            endMenu.style.display = 'none';
+            pauseMenu.style.display = 'none';
+            canvas.style.display = 'block';
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame(win) {
+            gameActive = false;
+            const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
+
+            canvas.style.display = 'none';
+            endMenu.style.display = 'block';
+            endMessage.textContent = win ? 'You Win!' : 'Game Over';
+            timeTaken.style.display = win ? 'block' : 'none';
+            timeTaken.textContent = `Time Taken: ${elapsedTime} seconds`;
+        }
+
+        function pauseGame() {
+            if (gameActive && !gamePaused) {
+                gamePaused = true;
+                pauseMenu.style.display = 'block';
+                canvas.style.display = 'none';
+            }
+        }
+
+        function resumeGame() {
+            if (gamePaused) {
+                gamePaused = false;
+                pauseMenu.style.display = 'none';
+                canvas.style.display = 'block';
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function playHitEffect(x, y) {
+            ctx.beginPath();
+            ctx.arc(x, y, 30, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function gameLoop() {
+            if (!gameActive || gamePaused) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${gameState.score}`, 10, 30);
+            ctx.fillText(`Health: ${gameState.health}`, 10, 60);
+            ctx.fillText(`Stage: ${gameState.stage}`, 10, 90);
+
+            ghosts.forEach((ghost) => {
+                ghost.move();
+                ghost.draw();
+            });
+
+            if (gameState.health <= 0) {
+                endGame(false);
+            } else {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            ghosts.forEach((ghost, index) => {
+                if (ghost.isHit(mouseX, mouseY)) {
+                    gameState.score++;
+                    playHitEffect(ghost.x, ghost.y);
+                    ghost.reset();
+
+                    if (gameState.score % 10 === 0) {
+                        gameState.stage++;
+                        createGhosts(1);
+                    }
+                }
+            });
+        });
+
+        difficultyButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                selectedDifficulty = button.dataset.difficulty;
+                alert(`Difficulty set to: ${selectedDifficulty}`);
+            });
+        });
+
+        startGameBtn.addEventListener('click', startGame);
+        retryGameBtn.addEventListener('click', startGame);
+        exitGameBtn.addEventListener('click', () => {
+            mainMenu.style.display = 'block';
+            endMenu.style.display = 'none';
+        });
+
+        resumeGameBtn.addEventListener('click', resumeGame);
+        exitToMainBtn.addEventListener('click', () => {
+            gameActive = false;
+            gamePaused = false;
+            pauseMenu.style.display = 'none';
+            canvas.style.display = 'none';
+            mainMenu.style.display = 'block';
+        });
+
+        viewRecordsBtn.addEventListener('click', () => {
+            alert('Record viewing is not yet implemented.');
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (gamePaused) {
+                    resumeGame();
+                } else {
+                    pauseGame();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
