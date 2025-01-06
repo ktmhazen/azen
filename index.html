@@ -101,6 +101,10 @@
             <button id="language-en">English</button>
             <button id="language-ko">한국어</button>
         </div>
+        <div>
+            <button id="auto-clear">Toggle Auto Clear Mode</button>
+            <button id="replay-last">Replay Last Game</button>
+        </div>
     </div>
 
     <canvas id="game-canvas" width="800" height="600" style="display: none;"></canvas>
@@ -151,10 +155,13 @@
         const badgeProgress = document.getElementById('badge-progress');
         const languageEnBtn = document.getElementById('language-en');
         const languageKoBtn = document.getElementById('language-ko');
+        const autoClearBtn = document.getElementById('auto-clear');
+        const replayLastBtn = document.getElementById('replay-last');
 
         let gameActive = false;
         let gamePaused = false;
-        let startTime;
+        let autoClearMode = false;
+        let replayData = [];
         let selectedDifficulty = 'normal';
         let gameOverCount = 0;
         let helpMode = false;
@@ -176,6 +183,8 @@
                 badgesTitle: 'Your Badges',
                 badgesCollected: 'Badges Collected:',
                 helpMode: 'Help Mode Activated: Difficulty Reduced',
+                autoClear: 'Auto Clear Mode Activated',
+                replay: 'Replaying Last Game',
             },
             ko: {
                 title: '유령 사냥 게임',
@@ -192,6 +201,8 @@
                 badgesTitle: '획득한 뱃지',
                 badgesCollected: '획득한 뱃지:',
                 helpMode: '도움 모드 활성화: 난이도 감소',
+                autoClear: '자동 클리어 모드 활성화',
+                replay: '이전 게임 재생 중',
             },
         };
         let currentLanguage = 'en';
@@ -222,14 +233,47 @@
             applyTranslations();
         });
 
-        applyTranslations();
+        autoClearBtn.addEventListener('click', () => {
+            autoClearMode = !autoClearMode;
+            alert(autoClearMode ? translations[currentLanguage].autoClear : 'Auto Clear Mode Deactivated');
+        });
+
+        replayLastBtn.addEventListener('click', () => {
+            if (replayData.length === 0) {
+                alert('No previous game data available.');
+                return;
+            }
+            alert(translations[currentLanguage].replay);
+            replayGame();
+        });
+
+        function replayGame() {
+            gameActive = true;
+            let frame = 0;
+            function step() {
+                if (!gameActive || frame >= replayData.length) {
+                    gameActive = false;
+                    return;
+                }
+                drawFrame(replayData[frame]);
+                frame++;
+                requestAnimationFrame(step);
+            }
+            step();
+        }
+
+        function drawFrame(data) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            data.ghosts.forEach(ghost => {
+                ctx.fillStyle = ghost.color;
+                ctx.beginPath();
+                ctx.arc(ghost.x, ghost.y, ghost.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
 
         function startGame() {
-            if (gameOverCount >= 3) {
-                helpMode = true;
-                alert(translations[currentLanguage].helpMode);
-            }
-
+            replayData = [];
             gameActive = true;
             gamePaused = false;
             const difficulty = difficulties[selectedDifficulty];
@@ -239,7 +283,7 @@
             startTime = Date.now();
 
             ghosts.length = 0;
-            createGhosts(helpMode ? 3 : 5); // Reduce number of ghosts if help mode is active
+            createGhosts(helpMode ? 3 : 5);
 
             mainMenu.style.display = 'none';
             endMenu.style.display = 'none';
@@ -248,12 +292,26 @@
             requestAnimationFrame(gameLoop);
         }
 
-        function endGame() {
-            gameActive = false;
-            gameOverCount++;
-            if (gameOverCount >= 3) {
-                helpMode = true;
+        function gameLoop() {
+            if (!gameActive) return;
+            if (!gamePaused) {
+                updateGameState();
+                drawGameState();
+                saveReplayFrame();
             }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function saveReplayFrame() {
+            const frameData = {
+                ghosts: ghosts.map(ghost => ({
+                    x: ghost.x,
+                    y: ghost.y,
+                    size: ghost.size,
+                    color: ghost.color,
+                })),
+            };
+            replayData.push(frameData);
         }
 
         // The rest of the game logic remains unchanged.
