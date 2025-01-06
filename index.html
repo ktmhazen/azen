@@ -86,6 +86,7 @@
 <body>
     <div id="main-menu" class="menu">
         <h1 id="title-text">Ghost Hunting Game</h1>
+        <button id="start-game">Start Game</button>
         <button id="open-settings">Settings</button>
         <button id="view-records">View Records</button>
         <button id="view-badges">View Badges</button>
@@ -115,7 +116,7 @@
             <button id="help-mode">Toggle Help Mode</button>
         </div>
 
-        <button id="start-game">Start Game</button>
+        <button id="save-settings">Save Settings</button>
         <button id="back-to-menu">Back to Main Menu</button>
     </div>
 
@@ -154,6 +155,7 @@
 
         const openSettingsBtn = document.getElementById('open-settings');
         const backToMenuBtn = document.getElementById('back-to-menu');
+        const saveSettingsBtn = document.getElementById('save-settings');
         const startGameBtn = document.getElementById('start-game');
         const viewRecordsBtn = document.getElementById('view-records');
         const viewBadgesBtn = document.getElementById('view-badges');
@@ -170,6 +172,13 @@
         let autoClearMode = false;
         let helpMode = false;
 
+        let gameSettings = {
+            difficulty: 'normal',
+            autoClearMode: false,
+            helpMode: false,
+            language: 'en',
+        };
+
         openSettingsBtn.addEventListener('click', () => {
             mainMenu.style.display = 'none';
             settingsMenu.style.display = 'block';
@@ -178,6 +187,14 @@
         backToMenuBtn.addEventListener('click', () => {
             settingsMenu.style.display = 'none';
             mainMenu.style.display = 'block';
+        });
+
+        saveSettingsBtn.addEventListener('click', () => {
+            gameSettings.difficulty = selectedDifficulty;
+            gameSettings.autoClearMode = autoClearMode;
+            gameSettings.helpMode = helpMode;
+            console.log('Settings saved:', gameSettings);
+            alert('Settings Saved!');
         });
 
         difficultyButtons.forEach(button => {
@@ -199,21 +216,36 @@
         });
 
         startGameBtn.addEventListener('click', () => {
-            settingsMenu.style.display = 'none';
+            mainMenu.style.display = 'none';
             startGame();
         });
 
         function startGame() {
-            // Initialize the game state based on selected settings
-            console.log(`Starting game with difficulty: ${selectedDifficulty}, Auto Clear: ${autoClearMode}, Help Mode: ${helpMode}`);
-            // Additional initialization code...
-
+            // Initialize the game state based on saved settings
+            console.log(`Starting game with settings:`, gameSettings);
             canvas.style.display = 'block';
+            initializeGame();
+        }
+
+        function initializeGame() {
+            // Add initialization code for game state, enemies, items, etc.
+            console.log('Game initialized with:', gameSettings);
+            spawnItems();
             requestAnimationFrame(gameLoop);
         }
 
+        function spawnItems() {
+            setInterval(() => {
+                if (Math.random() < 0.1) {
+                    console.log('Item spawned on the field!');
+                }
+            }, 5000);
+        }
+
         function gameLoop() {
-            // Core game loop logic...
+            // Core game logic
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw and update game entities...
             requestAnimationFrame(gameLoop);
         }
     </script>
